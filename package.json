@@ -1,8 +1,8 @@
 {
-  "name": "shop-example",
+  "name": "cicd-ai-reference",
   "private": true,
   "version": "0.1.1",
-  "description": "Example project: Docker Compose + Postgres + full CI/CD pipeline with AI review and QA handoff",
+  "description": "Reference project for a CI/CD + AI pipeline: the app is a vehicle, the deliverable is the pipeline around it",
   "type": "module",
   "scripts": {
     "start": "node app/server.mjs",
@@ -12,7 +12,8 @@
     "qa-report": "python3 scripts/qa-report.py"
   },
   "dependencies": {
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1"

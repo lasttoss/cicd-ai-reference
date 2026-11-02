@@ -1,6 +1,6 @@
 # Production: no build, no source tree. The image reference is immutable, so what runs
 # is exactly what was verified on dev. Migrations ship inside the same artefact.
-name: shop-example-prod
+name: cicd-ai-reference-prod
 
 x-env: &env
   DATABASE_URL: postgres://shop:${DB_PASSWORD:?set DB_PASSWORD}@db:5432/shop

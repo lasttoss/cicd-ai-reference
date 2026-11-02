@@ -1,5 +1,5 @@
 # Local / CI stack. Same file in both places, so "works on my machine" is not a claim.
-name: shop-example
+name: cicd-ai-reference
 
 services:
   db:
@@ -33,7 +33,7 @@ services:
 
   app:
     build: .
-    image: shop-example:${IMAGE_TAG:-local}
+    image: cicd-ai-reference:${IMAGE_TAG:-local}
     environment: *env
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"

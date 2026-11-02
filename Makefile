@@ -1,6 +1,6 @@
 # Contract every repo in this workflow implements. CI never knows what the project is,
 # it only calls these targets.
-IMAGE        ?= shop-example
+IMAGE        ?= cicd-ai-reference
 TAG          ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 IMAGE_REF    ?= $(IMAGE):$(TAG)
 APP_PORT     ?= 8080
@@ -16,7 +16,7 @@ ci:
 	@node --check scripts/migrate.mjs
 	@node --check scripts/seed.mjs
 	@node --check scripts/smoke.mjs
-	@python3 -m py_compile scripts/qa-report.py
+	@node --check scripts/qa-report.mjs
 	@node -e "JSON.parse(require('fs').readFileSync('package.json'))"
 	@echo "ci: ok"
 
@@ -40,7 +40,7 @@ e2e:
 	APP_URL=http://127.0.0.1:$(APP_PORT) npx playwright test
 
 qa-report:
-	python3 scripts/qa-report.py $(ARGS)
+	node scripts/qa-report.mjs $(ARGS)
 
 build:
 	docker build -t $(IMAGE_REF) .

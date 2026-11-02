@@ -1,0 +1,61 @@
+name: promote
+
+# dev -> main promotes an artefact, it does not rebuild one.
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  provenance:
+    name: every commit on main arrives via a reviewed merge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: |
+          n=$(git log "origin/main..origin/${GITHUB_HEAD_REF}" --no-merges --oneline | wc -l)
+          echo "commits without a merge commit: $n"
+          test "$n" -eq 0 || { echo "::error::direct commits bypass review"; exit 1; }
+
+  verify:
+    name: verify the dev artefact on staging (blocking)
+    needs: provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # TODO(project): resolve the digest that was built on dev, e.g.
+      #   skopeo inspect docker://$REGISTRY/cicd-ai-reference:dev | jq -r .Digest
+      - name: Deploy the exact dev digest to staging
+        env:
+          IMAGE_DIGEST: ${{ vars.STAGING_IMAGE_DIGEST }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          test -n "$IMAGE_DIGEST" || { echo "::error::STAGING_IMAGE_DIGEST is not set"; exit 1; }
+          make deploy PROD_PORT=9090
+
+      - run: APP_URL=http://127.0.0.1:9090 make e2e
+
+      - name: Generate the QA handoff for the tester
+        if: always()
+        env:
+          QA_BASE: origin/main
+          QA_PRS: ${{ github.event.number }}
+          QA_ENV_URL: staging
+        run: make qa-report
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qa-handoff
+          path: reports/

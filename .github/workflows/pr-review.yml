@@ -1,0 +1,49 @@
+name: pr-review
+
+# Advisory: this job posts findings, it never blocks a merge.
+# Skipped for fork PRs because `pull_request` events from forks receive no secrets.
+on:
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai-review:
+    name: AI diff review (advisory)
+    if: github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm i -g @alibaba-group/open-code-review
+
+      # OpenAI-compatible endpoint. Verify flag names with `ocr config --help`.
+      - name: Configure the model endpoint
+        run: |
+          ocr config provider --provider openai --base-url "${{ secrets.PROVIDER_BASE_URL }}" \
+            --api-key "${{ secrets.PROVIDER_API_KEY }}"
+          ocr config model --model "${{ vars.REVIEW_MODEL || 'deepseek-v4.1-flash' }}"
+
+      # .ocr/rules/repo-rules.md is what makes this reviewer better than a generic one.
+      - name: Review the diff
+        run: |
+          ocr review --from "origin/${{ github.base_ref }}" --to HEAD \
+            --format markdown --output review.md || true
+
+      - name: Post as a single review comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test -s review.md || { echo "nothing to post"; exit 0; }
+          gh pr review "${{ github.event.number }}" --comment --body-file review.md || true

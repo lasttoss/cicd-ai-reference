@@ -7,3 +7,4 @@ test-results/
 playwright-report/
 deploy/*.txt
 .env
+docs/examples/

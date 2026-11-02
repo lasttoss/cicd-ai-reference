@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: quality + e2e (blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # The workflow never inspects the project. It only calls `make`.
+      - run: make ci
+
+      # Same Compose stack as local, so "works on my machine" is not a claim.
+      - name: Bring the stack up
+        run: docker compose up -d --build --wait
+
+      - run: make e2e
+
+      - name: Generate the QA handoff
+        if: always()
+        env:
+          QA_BASE: origin/${{ github.base_ref || 'dev' }}
+          QA_PRS: ${{ github.event.number }}
+          IMAGE_DIGEST: ${{ github.sha }}
+          QA_ENV_URL: compose stack on the runner
+        run: make qa-report
+
+      - name: Dump app logs on failure
+        if: failure()
+        run: docker compose logs --tail=80 app
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-evidence
+          path: |
+            artifacts/
+            reports/
+          retention-days: 30
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
