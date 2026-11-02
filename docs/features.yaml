@@ -41,6 +41,23 @@ features:
       - "address can be changed after an order was placed"
       - "an empty address is rejected"
 
+# Infrastructure paths: changes here still appear under 🔥 but are not counted as
+# "unmapped product changes", otherwise README edits pollute the tester checklist.
+ignore_paths:
+  - ".github/**"
+  - ".ci/**"
+  - ".ocr/**"
+  - "docs/**"
+  - "scripts/**"
+  - "Makefile"
+  - "README.md"
+  - "Dockerfile"
+  - "docker-compose*.yml"
+  - "playwright.config.ts"
+  - "package*.json"
+  - ".gitignore"
+  - ".env.test"
+
 can_not_cover:
   - "real confirmation email (CI blocks outbound traffic, the payload is only logged)"
   - "mobile layout below 375px"

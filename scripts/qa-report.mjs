@@ -42,6 +42,13 @@ const digest = opt('digest', env.IMAGE_DIGEST || 'n/a');
 const envUrl = opt('env-url', env.QA_ENV_URL || 'local');
 const prs = String(opt('pr', env.QA_PRS || '')).split(',').map((s) => s.trim()).filter(Boolean);
 
+// Path glob -> RegExp. Escape first, then expand wildcards, or `**` becomes garbage.
+const glob = (g) => {
+  const esc = g.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const rx = esc.split('**').join('\u0000').split('*').join('[^/]*').split('\u0000').join('.*');
+  return new RegExp(`^${rx}$`);
+};
+
 const sh = (...cmd) => {
   try { return execFileSync(cmd[0], cmd.slice(1), { cwd: ROOT, encoding: 'utf8' }).trim(); }
   catch { return ''; }
@@ -100,6 +107,7 @@ const readYaml = (p, fallback) => (existsSync(p) ? parseYaml(readFileSync(p, 'ut
 const cfg = readYaml(featuresPath, {});
 const features = cfg.features || [];
 const canNotCover = cfg.can_not_cover || [];
+const ignorePaths = cfg.ignore_paths || [];
 const known = readYaml(knownPath, {}).known_issues || [];
 const markers = known.map((k) => k.match).filter(Boolean);
 if (!features.length) die(`${featuresPath} declares no features`);
@@ -134,11 +142,13 @@ const unverifiedIds = new Set(unverified.map((u) => u.feature.id));
 const changes = (base ? (sh('git', 'diff', '--name-only', `${base}...HEAD`)
   || sh('git', 'diff', '--name-only', base, 'HEAD')) : '')
   .split('\n').filter((p) => p && !IGNORED.some((i) => p.startsWith(i)));
-const owns = (path, f) => (f.paths || []).some((g) =>
-  new RegExp(`^${g.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*').replace(/\./g, '\\.')}$`).test(path));
+const owns = (path, f) => (f.paths || []).some((g) => glob(g).test(path));
+
+const isIgnored = (p) => ignorePaths.some((g) => glob(g).test(p));
 
 const unmapped = [], ownedByUnverified = [];
 for (const path of changes) {
+  if (isIgnored(path)) continue;
   const owners = features.filter((f) => owns(path, f));
   if (!owners.length) unmapped.push(path);
   else if (owners.some((o) => unverifiedIds.has(o.id))) {
