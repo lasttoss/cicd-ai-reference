@@ -23,6 +23,15 @@ features:
       - "an order can be cancelled once, a second cancel is refused"
       - "another user never sees my orders"
 
+  - id: schema
+    name: "Database schema and migrations"
+    risk: high
+    paths: ["app/migrations/**"]
+    e2e: []                              # no e2e asserts migrations -> must be flagged
+    criteria:
+      - "migrations apply cleanly on an existing database"
+      - "existing rows keep working after the change"
+
   - id: address
     name: "Delivery address"
     risk: medium

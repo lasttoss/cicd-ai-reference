@@ -1,7 +1,7 @@
 {
   "name": "shop-example",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Example project: Docker Compose + Postgres + full CI/CD pipeline with AI review and QA handoff",
   "type": "module",
   "scripts": {

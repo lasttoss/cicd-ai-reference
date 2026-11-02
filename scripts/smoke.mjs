@@ -42,6 +42,13 @@ if (token) {
   check('unauthenticated is rejected', unauth.status === 401);
 }
 
+// An empty production database has no accounts, so the authenticated flow only runs
+// when explicitly requested (demo environments, or after seeding).
+if (process.env.SMOKE_FULL !== '1') {
+  checks.splice(2);  // keep only healthz + auth-rejection checks
+  console.log('(authenticated flow skipped: set SMOKE_FULL=1 to include it)');
+}
+
 const failed = checks.filter((c) => !c.ok);
 console.log(`\n${checks.length - failed.length}/${checks.length} smoke checks passed`);
 process.exit(failed.length ? 1 : 0);

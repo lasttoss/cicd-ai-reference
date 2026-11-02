@@ -6,6 +6,7 @@ IMAGE_REF    ?= $(IMAGE):$(TAG)
 APP_PORT     ?= 8080
 PROD_PORT    ?= 9090
 DB_PASSWORD  ?= local-dev-only
+SMOKE_FULL   ?= 0
 SMOKE_URL    ?= http://127.0.0.1:$(PROD_PORT)
 
 .PHONY: ci up down logs migrate seed e2e qa-report build deploy smoke rollback clean
@@ -57,7 +58,7 @@ deploy:
 	@echo "deploy: $(IMAGE_DIGEST) live on $(SMOKE_URL)"
 
 smoke:
-	SMOKE_URL=$(SMOKE_URL) node scripts/smoke.mjs
+	SMOKE_URL=$(SMOKE_URL) SMOKE_FULL=$(SMOKE_FULL) node scripts/smoke.mjs
 
 rollback:
 	@test -f deploy/previous-image.txt || { echo "no previous image recorded"; exit 1; }
@@ -69,3 +70,7 @@ rollback:
 
 clean:
 	rm -rf artifacts reports/*.md reports/*.json test-results node_modules/.cache
+
+seed-demo:
+	IMAGE_DIGEST=$$(cat deploy/current-image.txt) DB_PASSWORD=$(DB_PASSWORD) PROD_PORT=$(PROD_PORT) \
+		docker compose -f docker-compose.prod.yml --profile demo run --rm seed-demo

@@ -1,6 +1,9 @@
-# Production: no build, no source. The image reference is pinned to an immutable
-# digest, so what runs is exactly what was verified on dev.
+# Production: no build, no source tree. The image reference is immutable, so what runs
+# is exactly what was verified on dev. Migrations ship inside the same artefact.
 name: shop-example-prod
+
+x-env: &env
+  DATABASE_URL: postgres://shop:${DB_PASSWORD:?set DB_PASSWORD}@db:5432/shop
 
 services:
   db:
@@ -17,20 +20,39 @@ services:
     volumes:
       - prod-pgdata:/var/lib/postgresql/data
 
+  migrate:
+    image: ${IMAGE_DIGEST:?set IMAGE_DIGEST to an immutable image reference}
+    command: ["node", "scripts/migrate.mjs"]
+    environment: *env
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
   app:
-    image: ${IMAGE_DIGEST:?set IMAGE_DIGEST to an immutable digest}
-    environment:
-      DATABASE_URL: postgres://shop:${DB_PASSWORD}@db:5432/shop
+    image: ${IMAGE_DIGEST:?set IMAGE_DIGEST to an immutable image reference}
+    environment: *env
     ports:
       - "127.0.0.1:${PROD_PORT:-9090}:8080"
     restart: always
     depends_on:
       db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 20
+
+  # Demo only: creates the throwaway QA account on the production stack so the smoke
+  # test can run the full flow. Never enable this in a real deployment.
+  seed-demo:
+    profiles: ["demo"]
+    image: ${IMAGE_DIGEST:?set IMAGE_DIGEST}
+    command: ["node", "scripts/seed.mjs"]
+    environment: *env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: "no"
 
 volumes:
   prod-pgdata:
