@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Shop Example</title>
+<style>
+ body{font:15px system-ui;max-width:680px;margin:40px auto;padding:0 16px}
+ input,button{font:inherit;padding:6px 8px;margin:4px 0}
+ .card{border:1px solid #ddd;border-radius:8px;padding:12px;margin:12px 0}
+ li{display:flex;gap:8px;align-items:center;padding:4px 0}
+ .err{color:#b00}.ok{color:#070}
+</style></head><body>
+<h1>Shop Example</h1>
+
+<section class="card" data-testid="login-view">
+  <h2>Sign in</h2>
+  <input data-testid="email" placeholder="email" value="qa1@test.local">
+  <input data-testid="password" placeholder="password" type="password" value="qa-pass">
+  <button data-testid="login-btn">Sign in</button>
+  <p data-testid="login-msg"></p>
+</section>
+
+<section class="card" data-testid="shop-view" hidden>
+  <h2>My orders</h2>
+  <button data-testid="new-order">New order</button>
+  <ul data-testid="orders"></ul>
+</section>
+
+<section class="card" data-testid="address-view" hidden>
+  <h2>Delivery address</h2>
+  <input data-testid="address-line" placeholder="street, city">
+  <button data-testid="save-address">Save address</button>
+  <p data-testid="address-msg"></p>
+</section>
+
+<script>
+const api = async (method, path, payload) => {
+  const r = await fetch(path, {
+    method,
+    headers: { 'content-type': 'application/json', 'x-token': localStorage.token || '' },
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
+  return { status: r.status, data: await r.json().catch(() => ({})) };
+};
+const $ = (id) => document.querySelector(`[data-testid="${id}"]`);
+
+$('login-btn').onclick = async () => {
+  const { status, data } = await api('POST', '/api/login',
+    { email: $('email').value, password: $('password').value });
+  const msg = $('login-msg');
+  if (status !== 200) { msg.textContent = 'Wrong email or password'; msg.className = 'err'; return; }
+  localStorage.token = data.token;
+  msg.textContent = 'Signed in'; msg.className = 'ok';
+  $('login-view').hidden = true; $('shop-view').hidden = false; $('address-view').hidden = false;
+  await renderOrders(); await renderAddress();
+};
+
+$('new-order').onclick = async () => {
+  await api('POST', '/api/orders', { item: 'T-shirt' });
+  await renderOrders();
+};
+
+$('save-address').onclick = async () => {
+  const { status, data } = await api('PUT', '/api/address', { line: $('address-line').value });
+  const msg = $('address-msg');
+  msg.textContent = status === 200 ? `Saved: ${data.line}` : 'Address is required';
+  msg.className = status === 200 ? 'ok' : 'err';
+};
+
+async function renderOrders() {
+  const { data } = await api('GET', '/api/orders');
+  const ul = $('orders'); ul.innerHTML = '';
+  for (const o of data.orders || []) {
+    const li = document.createElement('li');
+    li.dataset.testid = 'order-row';
+    li.textContent = `${o.id} · ${o.item} · ${o.status}`;
+    if (o.status === 'new') {
+      const b = document.createElement('button');
+      b.textContent = 'Cancel'; b.dataset.testid = 'cancel-' + o.id;
+      b.onclick = async () => { await api('POST', `/api/orders/${o.id}/cancel`); await renderOrders(); };
+      li.appendChild(b);
+    }
+    ul.appendChild(li);
+  }
+}
+
+async function renderAddress() {
+  const { data } = await api('GET', '/api/address');
+  $('address-line').value = data.line || '';
+}
+</script>
+</body></html>

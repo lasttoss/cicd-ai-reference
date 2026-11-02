@@ -1,0 +1,36 @@
+# Production: no build, no source. The image reference is pinned to an immutable
+# digest, so what runs is exactly what was verified on dev.
+name: shop-example-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: shop
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shop -d shop"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - prod-pgdata:/var/lib/postgresql/data
+
+  app:
+    image: ${IMAGE_DIGEST:?set IMAGE_DIGEST to an immutable digest}
+    environment:
+      DATABASE_URL: postgres://shop:${DB_PASSWORD}@db:5432/shop
+    ports:
+      - "127.0.0.1:${PROD_PORT:-9090}:8080"
+    restart: always
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  prod-pgdata:

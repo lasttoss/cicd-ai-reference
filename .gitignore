@@ -1,0 +1,9 @@
+node_modules/
+__pycache__/
+*.pyc
+artifacts/
+reports/
+test-results/
+playwright-report/
+deploy/*.txt
+.env

@@ -1,0 +1,20 @@
+{
+  "name": "shop-example",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Example project: Docker Compose + Postgres + full CI/CD pipeline with AI review and QA handoff",
+  "type": "module",
+  "scripts": {
+    "start": "node app/server.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "e2e": "playwright test",
+    "qa-report": "python3 scripts/qa-report.py"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}

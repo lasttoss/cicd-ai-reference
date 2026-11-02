@@ -1,0 +1,6 @@
+# Repo capability declaration read by the shared workflows.
+preview: compose
+e2e: playwright
+db: postgres
+prod_env: production
+qa_report: true

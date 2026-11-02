@@ -1,0 +1,38 @@
+# Single source of truth: feature <-> e2e test <-> owned paths <-> acceptance criteria.
+# `make qa-report` reads this to compute what the machine verified and what it did not.
+version: 1
+
+features:
+  - id: auth
+    name: "Sign in"
+    risk: high
+    paths: ["app/server.mjs", "app/public/index.html"]
+    e2e: ["tests/e2e/auth.spec.ts"]
+    criteria:
+      - "correct password reveals the order screen"
+      - "wrong password is rejected and the order screen stays hidden"
+      - "API calls without a session are rejected"
+
+  - id: orders
+    name: "Orders"
+    risk: high
+    paths: ["app/server.mjs", "app/public/index.html", "app/migrations/**"]
+    e2e: ["tests/e2e/orders.spec.ts"]
+    criteria:
+      - "a created order appears in my own list"
+      - "an order can be cancelled once, a second cancel is refused"
+      - "another user never sees my orders"
+
+  - id: address
+    name: "Delivery address"
+    risk: medium
+    paths: ["app/public/index.html", "app/migrations/002_address_default.sql"]
+    e2e: ["tests/e2e/address.spec.ts"]   # does not exist yet -> report must flag it
+    criteria:
+      - "address can be changed after an order was placed"
+      - "an empty address is rejected"
+
+can_not_cover:
+  - "real confirmation email (CI blocks outbound traffic, the payload is only logged)"
+  - "mobile layout below 375px"
+  - "concurrent cancellation from two tabs (race)"

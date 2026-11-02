@@ -1,0 +1,5 @@
+known_issues:
+  - title: "Image upload over 5MB returns 500 instead of 413"
+    pr: 217
+    note: "ticketed, deferred to the next release"
+    match: "upload"
