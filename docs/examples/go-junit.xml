@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Shape produced by `gotestsum --junitfile junit.xml ./...` in a Go project. -->
+<testsuites>
+  <testsuite name="auth" tests="1" failures="0">
+    <testcase name="TestWrongPassword" classname="auth" file="internal/auth/login.go" time="0.01">
+      <properties><property name="business" value="wrong password is rejected"/></properties>
+    </testcase>
+  </testsuite>
+  <testsuite name="handler" tests="2" failures="1">
+    <testcase name="TestOrdersIsolated" classname="handler" file="internal/handler/orders.go" time="0.02">
+      <properties><property name="business" value="a user only ever receives their own orders"/></properties>
+    </testcase>
+    <testcase name="TestCancelTwice" classname="handler" file="internal/handler/orders.go" time="0.02">
+      <properties><property name="business" value="a cancelled order cannot be cancelled twice"/></properties>
+      <failure message="expected 409, got 200">orders_test.go:42</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

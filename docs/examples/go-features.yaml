@@ -1,0 +1,17 @@
+# Same schema, written for a Go service instead of a Node one.
+version: 1
+features:
+  - id: auth
+    name: "Sign in"
+    risk: high
+    paths: ["internal/auth/**"]
+    e2e: ["internal/auth/login.go"]
+    criteria: ["wrong password is rejected"]
+  - id: orders
+    name: "Orders"
+    risk: high
+    paths: ["internal/handler/**"]
+    e2e: ["internal/handler/orders.go"]
+    criteria: ["a user only sees their own orders", "a cancelled order cannot be cancelled twice"]
+can_not_cover:
+  - "real payment provider callback (sandbox only)"
