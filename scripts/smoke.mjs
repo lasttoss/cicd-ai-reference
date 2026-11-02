@@ -1,8 +1,12 @@
-// Post-deploy smoke test. Runs against a URL, asserts real behaviour, exits non-zero
-// on failure so a deploy can be reverted automatically.
+// Post-deploy smoke test. Runs against a URL, asserts real behaviour, exits non-zero on
+// failure so a broken deploy can be reverted automatically.
+//
+// Always: liveness (health + DB reachable) and access control (no session = 401).
+// With SMOKE_FULL=1: the authenticated flow, which needs a seeded account.
 const base = process.env.SMOKE_URL || 'http://127.0.0.1:8080';
 const email = process.env.SEED_EMAIL || 'qa1@test.local';
 const pass = process.env.SEED_PASS || 'qa-pass';
+const full = process.env.SMOKE_FULL === '1';
 
 const call = async (method, path, payload, token) => {
   const r = await fetch(base + path, {
@@ -15,38 +19,40 @@ const call = async (method, path, payload, token) => {
 
 const checks = [];
 const check = (name, ok, detail = '') => {
-  checks.push({ name, ok, detail });
+  checks.push({ name, ok });
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
+// --- always
 const health = await call('GET', '/healthz');
-check('healthz', health.status === 200 && health.data.db === 'up', `db=${health.data.db}`);
+check('health + database reachable', health.status === 200 && health.data.db === 'up',
+  `status=${health.status} db=${health.data.db}`);
 
-const login = await call('POST', '/api/login', { email, password: pass });
-check('login', login.status === 200 && !!login.data.token);
-const token = login.data.token;
+const anon = await call('GET', '/api/orders');
+check('unauthenticated request is rejected', anon.status === 401, `status=${anon.status}`);
 
-if (token) {
-  const created = await call('POST', '/api/orders', { item: 'smoke-item' }, token);
-  check('create order', created.status === 201 && !!created.data.id);
+// --- authenticated flow
+if (full) {
+  const login = await call('POST', '/api/login', { email, password: pass });
+  check('sign in', login.status === 200 && !!login.data.token, `status=${login.status}`);
+  const token = login.data.token;
 
-  const list = await call('GET', '/api/orders', null, token);
-  check('order is listed', (list.data.orders || []).some((o) => o.id === created.data.id));
+  if (token) {
+    const created = await call('POST', '/api/orders', { item: 'smoke-item' }, token);
+    check('create an order', created.status === 201 && !!created.data.id, `status=${created.status}`);
 
-  if (created.data.id) {
-    const cancelled = await call('POST', `/api/orders/${created.data.id}/cancel`, null, token);
-    check('cancel order', cancelled.status === 200 && cancelled.data.status === 'cancelled');
+    const list = await call('GET', '/api/orders', null, token);
+    check('order appears in my list',
+      (list.data.orders || []).some((o) => o.id === created.data.id));
+
+    if (created.data.id) {
+      const cancelled = await call('POST', `/api/orders/${created.data.id}/cancel`, null, token);
+      check('cancel an order', cancelled.status === 200 && cancelled.data.status === 'cancelled',
+        `status=${cancelled.status}`);
+    }
   }
-
-  const unauth = await call('GET', '/api/orders');
-  check('unauthenticated is rejected', unauth.status === 401);
-}
-
-// An empty production database has no accounts, so the authenticated flow only runs
-// when explicitly requested (demo environments, or after seeding).
-if (process.env.SMOKE_FULL !== '1') {
-  checks.splice(2);  // keep only healthz + auth-rejection checks
-  console.log('(authenticated flow skipped: set SMOKE_FULL=1 to include it)');
+} else {
+  console.log('(authenticated flow skipped — set SMOKE_FULL=1 where an account is seeded)');
 }
 
 const failed = checks.filter((c) => !c.ok);
