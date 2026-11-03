@@ -14,7 +14,7 @@ If you are reading this to evaluate the workflow rather than the app, start from
 | Goal | Where it lives |
 |---|---|
 | Every change is verified before a human looks at it | `.github/workflows/ci.yml`, `make e2e` |
-| A reviewer bot that knows *this* repo's rules, not generic advice | `.ocr/rules/repo-rules.md` |
+| A reviewer bot that knows *this* repo's rules, not generic advice | `.opencodereview/rule.json` |
 | Testers receive evidence, not just a URL | `scripts/qa-report.mjs` → `reports/qa-*.md` |
 | Production receives exactly the artefact verified on dev | `docker-compose.prod.yml`, `make deploy` |
 | A bad deploy is undone in one command | `make rollback` |

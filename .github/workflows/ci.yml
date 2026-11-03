@@ -28,12 +28,18 @@ jobs:
       - run: npm ci
 
       # Measured in docs/evals/cold-start-*.md: browser download is ~20-25 s of the cold run.
-      # Keyed on the Playwright version — a lockfile change does not invalidate the browser.
+      # The key must move when the resolved Playwright version moves. A hand-maintained
+      # literal does not: `actions/cache` never overwrites an exact key, so a stale entry
+      # would silently disable the cache forever.
+      - name: Resolve the Playwright version
+        id: pw
+        run: echo "version=$(npx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: pw-${{ runner.os }}-${{ vars.PLAYWRIGHT_VERSION || '1.64.1' }}
+          key: pw-${{ runner.os }}-${{ steps.pw.outputs.version }}
 
       # --with-deps still installs the system libraries via apt (~25-35 s); that part is not
       # cacheable. See the baseline document for the option that removes it entirely.

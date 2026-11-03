@@ -28,18 +28,36 @@ jobs:
 
       - run: npm i -g @alibaba-group/open-code-review
 
-      # OpenAI-compatible endpoint. Verify flag names with `ocr config --help`.
+      # Secrets go through env, never interpolated into the command line, so they cannot
+      # leak into the step log. Provider setup is `ocr config set`, not flags.
       - name: Configure the model endpoint
+        id: cfg
+        env:
+          PROVIDER_KEY: ${{ secrets.PROVIDER_API_KEY }}
+          PROVIDER_URL: ${{ secrets.PROVIDER_BASE_URL }}
+          REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
         run: |
-          ocr config provider --provider openai --base-url "${{ secrets.PROVIDER_BASE_URL }}" \
-            --api-key "${{ secrets.PROVIDER_API_KEY }}"
-          ocr config model --model "${{ vars.REVIEW_MODEL || 'deepseek-v4.1-flash' }}"
+          if [ -z "$PROVIDER_KEY" ]; then
+            echo "::warning::PROVIDER_API_KEY is not configured - review lane skipped"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ocr config set provider gateway
+          ocr config set custom_providers.gateway.url "$PROVIDER_URL"
+          ocr config set custom_providers.gateway.protocol openai
+          ocr config set providers.gateway.api_key "$PROVIDER_KEY"
+          ocr config set model "${REVIEW_MODEL:-deepseek-v4.1-flash}"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
-      # .ocr/rules/repo-rules.md is what makes this reviewer better than a generic one.
+      # .opencodereview/rule.json is what makes this reviewer better than a generic one.
+      # `--format` accepts text|json|sarif only. A token budget caps worst-case spend.
       - name: Review the diff
+        if: steps.cfg.outputs.skip == 'false'
         run: |
           ocr review --from "origin/${{ github.base_ref }}" --to HEAD \
-            --format markdown --output review.md || true
+            --format text --audience agent --effort medium \
+            --max-tokens-budget 300000 \
+            -o review.md || true
 
       - name: Post as a single review comment
         env:

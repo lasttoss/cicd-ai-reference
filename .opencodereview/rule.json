@@ -1,0 +1,26 @@
+{
+  "include": ["app/**/*.mjs", "scripts/**/*.mjs", "app/migrations/**/*.sql", ".github/workflows/*.yml"],
+  "exclude": ["**/node_modules/**", "**/reports/**", "**/test-results/**", "**/artifacts/**"],
+  "rules": [
+    {
+      "path": "app/server.mjs",
+      "merge_system_rule": true,
+      "rule": "This is a deliberately minimal example service. Project rules, in priority order: (1) Auth is a per-session token read from the `x-token` header and stored in the `sessions` table — never suggest JWT, OAuth or an external identity provider. (2) Passwords are scrypt-hashed into `users.pass_hash`; any code path that logs, echoes or returns a hash is a blocker. (3) Every query touching `orders` or `addresses` must filter by `user_id`; a missing filter is a blocker, not a suggestion. (4) The UI is framework-free on purpose: do not propose React, a bundler or a build step. (5) A new or changed handler needs an e2e assertion covering it; say so explicitly if none exists."
+    },
+    {
+      "path": "app/migrations/**/*.sql",
+      "merge_system_rule": true,
+      "rule": "Migrations are append-only and already applied in shared environments. A diff that edits or deletes an existing migration file is a blocker: the change must be a new migration instead. Check that new columns carry a sensible default or are nullable, and that indexes are added for columns used in WHERE clauses on orders and addresses."
+    },
+    {
+      "path": "scripts/**/*.mjs",
+      "merge_system_rule": true,
+      "rule": "These scripts run in CI on every pull request. A crash here blocks the pipeline, so prefer failing loudly with a non-zero exit over printing a warning and continuing. The QA report generator must stay deterministic: identical inputs must produce byte-identical output apart from the timestamp. Flag any dependency on wall-clock time, locale, hash ordering or environment order."
+    },
+    {
+      "path": ".github/workflows/*.yml",
+      "merge_system_rule": true,
+      "rule": "The CI workflow is the product here. Check: (1) no workflow may interpolate a secret directly into a shell command line — pass it through `env:` so it cannot leak into logs; (2) `pull_request_target` must never be used with code checkout, and fork PRs must be skipped when secrets are needed; (3) cache keys must derive from a file or command output that changes when the cached content changes, never from a hand-maintained literal; (4) the blocking job must stay under three minutes, so a step that cannot fail the build should not be in it."
+    }
+  ]
+}
