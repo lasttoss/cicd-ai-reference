@@ -72,3 +72,40 @@ catch: a comment documenting intent to skip a requirement is itself a defect.
 Not measured for this run: wall time and token count. Those live in the job log, which needs an
 authenticated API; the unauthenticated limit is 60 requests/hour per IP and was exhausted. The job
 is public: `Actions → pr-review → the run on feat/review-demo`.
+
+## The gate did not catch this — which is the whole argument for the lane
+
+When the demo change reached `dev`, the deterministic gate reported:
+
+```
+make e2e        -> 7 passed
+make qa-report  -> verified 2/4 · gaps 2 · checklist 5
+```
+
+Green. And `GET /api/summary` had **zero** coverage. The report never mentioned `app/server.mjs`,
+because `docs/features.yaml` maps that file to both `auth` and `orders`, and both were verified — a
+new route inside an already-verified file is invisible to file-level gap detection.
+
+Measured, not assumed — I tried to break my own gap detector twice:
+
+| Probe | Result |
+|---|---|
+| New route in an already-verified file, no test | **not flagged** |
+| Add a criterion to a verified feature with no matching test | **not flagged** (0 occurrences in the report) |
+
+So the honest scope of the deterministic gate: it detects gaps at **feature** granularity (feature
+with no declared test, declared test file missing, changed file owned by no feature). It cannot
+detect a **behaviour**-level gap inside a verified area. Same change, both lanes:
+
+| Lane | Verdict |
+|---|---|
+| deterministic gate | green, 0 findings |
+| AI reviewer | "no e2e assertion covering it", **citing project rule (5)**, with a concrete test recipe |
+
+Next step if this matters (it does — the whole point is that a tester only receives work a machine
+cannot judge): make `scripts/qa-report.mjs` check **per criterion**, not per feature. Every criterion
+in `docs/features.yaml` should require a passing test whose `annotation.description` matches it, and
+an unmatched criterion becomes a gap. That is roughly fifteen lines and it removes the blind spot
+this run exposed. Until then, the AI lane is the only thing standing between an untested route and
+a green pipeline — which is a good reason for it to stay advisory and a bad reason to trust it as
+a gate.

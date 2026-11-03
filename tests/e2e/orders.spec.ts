@@ -58,3 +58,23 @@ test('Orders are isolated per user', {
   const other = await request.get('/api/me', { headers: { 'x-token': 'not-a-real-token' } });
   expect(other.status()).toBe(401);
 });
+
+test('Order summary counts my own orders only', {
+  annotation: { type: 'business', description: 'my order summary counts only my own orders' },
+}, async ({ page, request }) => {
+  const totals = async (): Promise<number> => {
+    const token = await page.evaluate(() => localStorage.token);
+    const res = await request.get('/api/summary', { headers: { 'x-token': token } });
+    expect(res.status()).toBe(200);
+    const { counts } = await res.json();
+    return counts.reduce((n: number, c: { n: number }) => n + c.n, 0);
+  };
+
+  const before = await totals();
+  await createOrder(page);
+  expect(await totals(), 'creating one order must raise my own summary by exactly one')
+    .toBe(before + 1);
+
+  // Without a session the endpoint would leak other users' counts.
+  expect((await request.get('/api/summary')).status()).toBe(401);
+});

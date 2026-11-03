@@ -22,6 +22,7 @@ features:
       - "a created order appears in my own list"
       - "an order can be cancelled once, a second cancel is refused"
       - "another user never sees my orders"
+      - "my order summary counts only my own orders"
 
   - id: schema
     name: "Database schema and migrations"

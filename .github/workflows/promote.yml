@@ -14,7 +14,10 @@ jobs:
         with:
           fetch-depth: 0
       - run: |
-          n=$(git log "origin/main..origin/${GITHUB_HEAD_REF}" --no-merges --oneline | wc -l)
+          # --first-parent: walk only what actually landed on the branch tip. Without it,
+          # the commits inside a merged pull request count as "direct commits" and every
+          # promotion fails, which is the opposite of the rule's intent.
+          n=$(git log "origin/main..origin/${GITHUB_HEAD_REF}" --first-parent --no-merges --oneline | wc -l)
           echo "commits without a merge commit: $n"
           test "$n" -eq 0 || { echo "::error::direct commits bypass review"; exit 1; }
 
