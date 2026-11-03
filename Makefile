@@ -9,7 +9,7 @@ DB_PASSWORD  ?= local-dev-only
 SMOKE_FULL   ?= 0
 SMOKE_URL    ?= http://127.0.0.1:$(PROD_PORT)
 
-.PHONY: ci up down logs migrate seed e2e qa-report build deploy smoke rollback clean measure
+.PHONY: ci up down logs migrate seed e2e qa-report build deploy smoke rollback clean measure measure-cold
 
 ci:
 	@node --check app/server.mjs
@@ -77,3 +77,6 @@ seed-demo:
 
 measure:
 	RUNS=$(RUNS) bash scripts/measure.sh
+
+measure-cold:
+	bash scripts/measure-cold.sh
