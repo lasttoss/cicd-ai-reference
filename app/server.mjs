@@ -70,8 +70,7 @@ createServer(async (req, res) => {
 
     if (path === '/api/me') return send(res, 200, { email: user.email });
 
-    // Per-user order counts for the account page. Deliberately ships without an e2e
-    // assertion, to check that the reviewer flags an uncovered handler.
+    // Per-user order counts for the account page.
     if (path === '/api/summary' && req.method === 'GET') {
       const { rows } = await pool.query(
         `SELECT status, COUNT(*)::int AS n FROM orders
