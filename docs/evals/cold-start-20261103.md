@@ -39,5 +39,27 @@ Commit: `055bb80` · steps executed as declared in `.github/workflows/ci.yml`
 | playwright browsers | 11 entries in `~/.cache/ms-playwright` | +40–70 s, plus apt deps |
 | database volume | dropped | same |
 
-So the measured **18121 ms is a floor, not a forecast.** Adding the cold-cache costs above puts a
-GitHub runner at roughly **1.7–2× this number** before provisioning and queue time are counted.
+So the measured **18121 ms is a floor, not a forecast.**
+
+## Measured on a clean container — this replaced the estimates above
+
+`docker run --rm node:22` with empty caches, timing only the steps that cannot be measured on a machine
+where everything is already installed:
+
+| Step | Warm (this machine) | Cold container | Delta |
+|---|---|---|---|
+| `npm ci` | 590 ms | 1 241 ms | +0.7 s |
+| `playwright install --with-deps chromium` | 532 ms | **58 405 ms** | **+57.9 s** |
+
+Base-image pulls (node:22-alpine + postgres:16-alpine, ~80 MB) add roughly +15–25 s.
+
+**Revised projection for a GitHub runner: ≈97 s, i.e. ~5.4× the local figure** — not the 1.7–2× first
+written here. The first estimate was wrong by a factor of three because the dominant cost had never been
+executed. `playwright install --with-deps` alone is 60% of the whole cold run.
+
+## What that changes about optimisation
+
+1. **Cache `~/.cache/ms-playwright` first** — restoring it costs ~2 s and removes 58 s of 97 s.
+   `actions/cache` on `~/.cache/ms-playwright` keyed by the Playwright version.
+2. Cache the docker layers second (≈6–15 s).
+3. `npm ci` is noise at 1.2 s; caching it is not worth a step.
