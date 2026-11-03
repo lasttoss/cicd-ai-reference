@@ -4,7 +4,9 @@ on:
   pull_request:
     branches: [dev, main]
   push:
-    branches: [dev]
+    # `main` too: after a promotion the production branch gets its own evidence instead of
+    # inheriting the pull request's run.
+    branches: [dev, main]
 
 concurrency:
   group: ci-${{ github.ref }}
