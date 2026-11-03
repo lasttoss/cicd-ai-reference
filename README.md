@@ -15,6 +15,25 @@ If you are reading this to evaluate the workflow rather than the app, start from
 |---|---|
 | Every change is verified before a human looks at it | `.github/workflows/ci.yml`, `make e2e` |
 | A reviewer bot that knows *this* repo's rules, not generic advice | `.opencodereview/rule.json` |
+
+### Secrets in a public repository
+
+Repository secrets are write-only: GitHub never displays the value again, for anyone, including the
+owner, and no API returns it. A public repository therefore exposes secret *names*, never values.
+The residual risks are worth naming rather than hiding:
+
+- **Anyone who can push can read the secrets.** A workflow on a branch inside the repo receives
+  them. Protect the SSH key or token that grants push, not the secret itself.
+- **Fork pull requests receive no secrets** and are skipped here (`head.repo.fork == false`). This
+  is also why the lane uses `pull_request` and never `pull_request_target`.
+- **Logs are the leak surface.** Secrets are injected through `env:` rather than interpolated into
+  the command line, and `ocr config set` masks values itself (verified: `DUMM***2345`). Its config
+  file is written to `~/.opencodereview/config.json` (mode 600), outside the checkout, so it cannot
+  reach an artifact.
+
+Optional hardening: move the two secrets into an *Environment* (`Settings → Environments → ci`)
+restricted to the `dev` branch and add `environment: ci` to the job. Repository-level secrets keep
+working either way.
 | Testers receive evidence, not just a URL | `scripts/qa-report.mjs` → `reports/qa-*.md` |
 | Production receives exactly the artefact verified on dev | `docker-compose.prod.yml`, `make deploy` |
 | A bad deploy is undone in one command | `make rollback` |
