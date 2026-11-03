@@ -70,6 +70,14 @@ createServer(async (req, res) => {
 
     if (path === '/api/me') return send(res, 200, { email: user.email });
 
+    // Per-user order counts for the account page.
+    if (path === '/api/summary' && req.method === 'GET') {
+      const { rows } = await pool.query(
+        `SELECT status, COUNT(*)::int AS n FROM orders
+         WHERE user_id = $1 GROUP BY status ORDER BY status`, [user.id]);
+      return send(res, 200, { counts: rows });
+    }
+
     if (path === '/api/orders' && req.method === 'GET') {
       const { rows } = await pool.query(
         'SELECT id, item, status FROM orders WHERE user_id = $1 ORDER BY id', [user.id]);
