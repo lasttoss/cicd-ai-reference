@@ -59,7 +59,19 @@ executed. `playwright install --with-deps` alone is 60% of the whole cold run.
 
 ## What that changes about optimisation
 
-1. **Cache `~/.cache/ms-playwright` first** — restoring it costs ~2 s and removes 58 s of 97 s.
-   `actions/cache` on `~/.cache/ms-playwright` keyed by the Playwright version.
-2. Cache the docker layers second (≈6–15 s).
-3. `npm ci` is noise at 1.2 s; caching it is not worth a step.
+The 58 s is **two** costs, and they cache differently:
+
+| Part | Roughly | Cacheable by `actions/cache`? |
+|---|---|---|
+| `apt-get install` system libraries (needs root) | ~25–35 s | **No** — apt state is not in `~/.cache` |
+| Chromium download (~120 MB) | ~20–25 s | Yes, via `~/.cache/ms-playwright` |
+
+So:
+
+1. **Cache `~/.cache/ms-playwright`** — saves the download (~20–25 s), not the whole 58 s.
+   Key it on the Playwright version, not on the lockfile.
+2. **To remove the apt cost as well**, run the job in `mcr.microsoft.com/playwright:v1.64.1-noble`,
+   which ships the libraries. That is the only way to make Playwright free on a cold runner — and it
+   is the change to make if gate latency ever matters more than pipeline simplicity.
+3. Cache docker layers second (≈6–15 s).
+4. `npm ci` is noise at 1.2 s; caching it is not worth a step.
