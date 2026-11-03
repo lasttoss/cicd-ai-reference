@@ -24,6 +24,9 @@ jobs:
   verify:
     name: verify the dev artefact on staging (blocking)
     needs: provenance
+    # No registry is wired to this reference project yet, so there is no digest to deploy.
+    # Skipping is honest; failing would be noise, and passing silently would be a lie.
+    if: vars.STAGING_IMAGE_DIGEST != ''
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: staging
