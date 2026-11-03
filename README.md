@@ -38,6 +38,7 @@ working either way.
 | Production receives exactly the artefact verified on dev | `docker-compose.prod.yml`, `make deploy` |
 | A bad deploy is undone in one command | `make rollback` |
 | A bug found by a human can never escape twice | `docs/features.yaml` (the ratchet) |
+| Coverage is claimed per criterion, not per file | `docs/features.yaml` criteria must equal a test's `business` annotation verbatim |
 
 Guiding rule: **the model may speak, only tests may conclude, a human decides.**
 

@@ -138,6 +138,25 @@ for (const f of features) {
 }
 const unverifiedIds = new Set(unverified.map((u) => u.feature.id));
 
+// ---------- criteria coverage ----------
+// A feature counts as "verified" as soon as one of its declared test files passes, which hides a
+// criterion nobody wrote a test for — the report then claims coverage it does not have. Compare
+// each declared criterion against the business annotation of the passing rows instead.
+const normText = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').replace(/[.;]$/, '').trim();
+const uncoveredCriteria = [];
+for (const v of verified) {
+  const covered = new Set(v.rows.map((r) => normText(r.business)));
+  for (const criterion of (v.feature.criteria || [])) {
+    if (!covered.has(normText(criterion))) uncoveredCriteria.push({ feature: v.feature, criterion });
+  }
+}
+const allCriteria = features.reduce((n, f) => n + (f.criteria || []).length, 0);
+// Only criteria of verified features can be proven. Subtracting from allCriteria would count a
+// criterion belonging to a feature with no tests as covered — the exact false claim this file
+// exists to prevent.
+const coveredCriteria = verified.reduce((n, v) => n + (v.feature.criteria || []).length, 0)
+  - uncoveredCriteria.length;
+
 // ---------- changed files ----------
 const changes = (base ? (sh('git', 'diff', '--name-only', `${base}...HEAD`)
   || sh('git', 'diff', '--name-only', base, 'HEAD')) : '')
@@ -178,17 +197,22 @@ for (const path of unmapped.slice(0, 5)) {
   checks.push(`\`${path}\` changed but belongs to no declared feature — confirm the behaviour`);
 }
 for (const item of canNotCover) checks.push(`cannot be covered by machine: ${item}`);
+for (const u of uncoveredCriteria) {
+  checks.push(`${u.feature.name}: confirm "${u.criterion}" — no test asserts it yet`);
+}
 
 // ---------- render ----------
 const ts = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
-const gapCount = unverified.length + ownedByUnverified.length + unmapped.length;
+const gapCount = unverified.length + ownedByUnverified.length + unmapped.length
+  + uncoveredCriteria.length;
 const L = [
   `# QA Handoff — Release ${version}`, '',
   `\`${ts}\` · image digest \`${digest}\` · target \`${envUrl}\``, '',
   `- Pull requests: ${prs.length ? prs.map((p) => `#${p}`).join(', ') : '(none declared)'}`,
   `- Commits in range: ${base ? sh('git', 'log', `${base}..HEAD`, '--pretty=%h %s').split('\n').filter(Boolean).length : 0}`
     + ` · files changed: ${changes.length}`,
-  `- Automated coverage: ${verified.length}/${features.length} declared areas verified`, '',
+  `- Automated coverage: ${verified.length}/${features.length} declared areas verified`
+    + ` · criteria proven: ${coveredCriteria}/${allCriteria}`, '',
   '## ✅ Verified by the machine', '',
 ];
 if (verified.length) {
@@ -208,6 +232,8 @@ L.push('## ❌ NOT verified — this is where a human is needed', '');
 const gaps = unverified.map((u) => `- **${u.feature.name}** — ${u.why}`
   + ((u.feature.paths || []).length ? ` (\`paths\`: ${u.feature.paths.join(', ')})` : ''))
   .concat(ownedByUnverified.map(([p, names]) => `- **${names.join(', ')}** — \`${p}\` changed, current test does not cover it`));
+gaps.push(...uncoveredCriteria.map((u) => `- **${u.feature.name}** — declared criterion has no passing test: `
+  + `"${u.criterion}"`));
 if (unmapped.length) {
   gaps.push(`- **Unmapped changes** — ${unmapped.length} file(s) belong to no declared feature: `
     + unmapped.slice(0, 8).map((p) => `\`${p}\``).join(', ') + (unmapped.length > 8 ? ' …' : ''));
@@ -238,7 +264,9 @@ writeFileSync(js, JSON.stringify({ version, generated_at: ts, digest,
   verified: verified.map((v) => v.feature.id),
   known_failing: knownFailing.map((k) => k.feature.id),
   unverified: unverified.map((u) => ({ id: u.feature.id, why: u.why })),
+  uncovered_criteria: uncoveredCriteria.map((u) => ({ id: u.feature.id, criterion: u.criterion })),
   unmapped_changes: unmapped, checklist: checks }, null, 2));
 console.log(`qa-report: ${md}`);
 console.log(`  source ${basename(resultsPath)} (${raw.startsWith('<') ? 'junit xml' : 'playwright json'})`);
-console.log(`  verified ${verified.length}/${features.length} · gaps ${gapCount} · checklist ${checks.length}`);
+console.log(`  verified ${verified.length}/${features.length} · criteria ${coveredCriteria}/${allCriteria}`
+  + ` · gaps ${gapCount} · checklist ${checks.length}`);
