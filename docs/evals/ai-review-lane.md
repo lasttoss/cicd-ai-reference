@@ -42,3 +42,33 @@ make one measurable.
 
 Estimated spend at $0.15/M input: run A ≈ $0.005, run B ≈ $0.045 before output pricing. Output
 pricing for this endpoint is **not verified** — do not quote a total from this document alone.
+
+## Run C — first execution on GitHub Actions (PR #1)
+
+Setting: a branch adding `GET /api/summary` to `app/server.mjs`, **deliberately without an e2e
+assertion**, using the rule file in `.opencodereview/rule.json`. If the lane works end to end, it
+must flag the uncovered handler and cite the repository rule rather than generic advice.
+
+Result on the real runner — `ci` passing, `ai-review` passing, comment posted:
+
+> `Review complete: 2 finding(s) across 1 selected item(s).`
+>
+> **`app/server.mjs:75` — [test · high]** New handler `/api/summary` has no e2e assertion covering
+> it. No test in `tests/e2e/*.spec.ts` calls this route (and no consumer exists in `app/public/`
+> either), so per **project rule (5)** this change is incomplete as-is. Please add an e2e test —
+> e.g. create an order, call `GET /api/summary` with the session token, assert the returned `counts`
+> includes the expected `new` bucket, and add a sibling assertion that the same request without a
+> valid `x-token` returns 401.
+>
+> **`app/server.mjs:73` — [maintainability · medium]** This meta-comment about shipping without e2e
+> coverage should not be committed — it documents intent to bypass the project's test requirement
+> rather than the behaviour of the code.
+
+Both findings are correct. The first is the planted gap, and it cites **rule (5)** by number, which
+is the evidence that the project rules reach the model on CI — the thing that was silently broken
+before this file existed. The second found the comment I wrote to set up the test, which is a fair
+catch: a comment documenting intent to skip a requirement is itself a defect.
+
+Not measured for this run: wall time and token count. Those live in the job log, which needs an
+authenticated API; the unauthenticated limit is 60 requests/hour per IP and was exhausted. The job
+is public: `Actions → pr-review → the run on feat/review-demo`.

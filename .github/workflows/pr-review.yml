@@ -64,9 +64,14 @@ jobs:
           ocr review --from "origin/${{ github.base_ref }}" --to HEAD \
             --format text --audience agent --effort medium \
             --max-tokens-budget 300000 \
-            -o review.md
-          rc=$?
+            -o review.md 2>&1 | tee /tmp/ocr.log
+          rc=${PIPESTATUS[0]}
           [ $rc -ne 0 ] && echo "::warning::review lane exited $rc - no findings posted, merge is not blocked"
+          # Publish cost and latency to the run summary: an expensive reviewer is a reviewer
+          # people turn off, so the number has to be visible without digging into logs.
+          { echo "### AI review lane"; echo '```'; echo "exit: $rc"; } >> "$GITHUB_STEP_SUMMARY"
+          grep -h '^\[ocr\] Summary' /tmp/ocr.log 2>/dev/null >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
           exit 0
 
       - name: Post as a single review comment
