@@ -9,7 +9,7 @@ DB_PASSWORD  ?= local-dev-only
 SMOKE_FULL   ?= 0
 SMOKE_URL    ?= http://127.0.0.1:$(PROD_PORT)
 
-.PHONY: ci up down logs migrate seed e2e qa-report build deploy smoke rollback clean
+.PHONY: ci up down logs migrate seed e2e qa-report build deploy smoke rollback clean measure
 
 ci:
 	@node --check app/server.mjs
@@ -74,3 +74,6 @@ clean:
 seed-demo:
 	IMAGE_DIGEST=$$(cat deploy/current-image.txt) DB_PASSWORD=$(DB_PASSWORD) PROD_PORT=$(PROD_PORT) \
 		docker compose -f docker-compose.prod.yml --profile demo run --rm seed-demo
+
+measure:
+	RUNS=$(RUNS) bash scripts/measure.sh
