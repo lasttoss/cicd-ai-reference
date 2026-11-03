@@ -9,9 +9,9 @@ features:
     paths: ["app/server.mjs", "app/public/index.html"]
     e2e: ["tests/e2e/auth.spec.ts"]
     criteria:
-      - "correct password reveals the order screen"
+      - "correct password signs you in and reveals the order screen"
       - "wrong password is rejected and the order screen stays hidden"
-      - "API calls without a session are rejected"
+      - "calling the order API without a session is rejected"
 
   - id: orders
     name: "Orders"
@@ -19,8 +19,8 @@ features:
     paths: ["app/server.mjs", "app/public/index.html", "app/migrations/**"]
     e2e: ["tests/e2e/orders.spec.ts"]
     criteria:
-      - "a created order appears in my own list"
-      - "an order can be cancelled once, a second cancel is refused"
+      - "a created order appears in my own order list"
+      - "a freshly created order can be cancelled and cannot be cancelled twice"
       - "another user never sees my orders"
       - "my order summary counts only my own orders"
 
