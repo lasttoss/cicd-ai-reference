@@ -34,7 +34,7 @@ jobs:
         id: cfg
         env:
           PROVIDER_KEY: ${{ secrets.PROVIDER_API_KEY }}
-          PROVIDER_URL: ${{ secrets.PROVIDER_BASE_URL }}
+          PROVIDER_URL: ${{ secrets.PROVIDER_BASE_URL || vars.PROVIDER_BASE_URL }}
           REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
         run: |
           if [ -z "$PROVIDER_KEY" ] || [ -z "$PROVIDER_URL" ]; then
